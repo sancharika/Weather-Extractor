@@ -2,7 +2,7 @@
 RAG Weather Extractor — Scrape, Clean, Embed, Retrieve, Parse
 
 
-🌦️ RAG Weather Extractor
+## 🌦️ RAG Weather Extractor
 
 A Streamlit app that scrapes weather forecast pages, cleans and processes the data, embeds it in a vector database, and uses a cloud LLM (Groq) to extract structured weather information.
 
