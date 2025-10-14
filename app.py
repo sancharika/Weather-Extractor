@@ -11,7 +11,8 @@ from rag import run_rag_extraction
 #  Config / Keys
 # -----------------------
 # Provide in UI or environment
-DEFAULT_GROQ_API_KEY = "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"
+import os
+groq_api_key = os.getenv("DEFAULT_GROQ_API_KEY")
 DEFAULT_GROQ_MODEL = "moonshotai/kimi-k2-instruct-0905"
 
 # -----------------------
