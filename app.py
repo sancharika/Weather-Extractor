@@ -12,7 +12,7 @@ from rag import run_rag_extraction
 # -----------------------
 # Provide in UI or environment
 import os
-groq_api_key = os.getenv("GROQ_API_KEY")
+DEFAULT_GROQ_API_KEY = os.getenv("DEFAULT_GROQ_API_KEY")
 DEFAULT_GROQ_MODEL = "moonshotai/kimi-k2-instruct-0905"
 
 # -----------------------
