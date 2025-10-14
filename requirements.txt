@@ -1,0 +1,12 @@
+streamlit 
+bs4 
+requests 
+selenium 
+selenium-stealth 
+chromadb 
+langchain 
+langchain_groq 
+pydantic 
+huggingface-hub 
+sentence-transformers
+    
