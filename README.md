@@ -1,170 +1,223 @@
-# Weather-Extractor
-RAG Weather Extractor — Scrape, Clean, Embed, Retrieve, Parse
+# RAG Weather Extractor
 
+A Streamlit app that scrapes weather forecast pages, cleans and chunks the HTML, stores relevant chunks in a Chroma vector store, and uses a retrieval-augmented-generation (RAG) pipeline with a Groq LLM to extract structured JSON forecasts. Supports Selenium for JS-heavy pages and can persist or keep vector data in-memory.
 
-## 🌦️ RAG Weather Extractor
+---
 
-A Streamlit app that scrapes weather forecast pages, cleans and processes the data, embeds it in a vector database, and uses a cloud LLM (Groq) to extract structured weather information.
+## Table of Contents
 
-This app uses a Retrieval-Augmented Generation (RAG) pipeline to convert messy webpage data into a neat JSON forecast table.
+- What this project does
+- Features
+- Folder structure
+- Requirements
+- Installation (local)
+- Configuration & secrets
+- How it works — step by step
+- Usage (Streamlit UI)
+- Persistence & Viewing Vector DB
+- Deployment to Streamlit Community Cloud
+- Notes on Selenium & headless scraping
+- Troubleshooting
+- Contributing
+- License
 
-⸻
+---
 
-Features
-	•	Scrape any weather website using:
-	•	Requests (fast and simple)
-	•	Selenium (optional, for JavaScript-heavy pages)
-	•	Clean HTML pages by removing ads, scripts, headers, footers, and other noise.
-	•	Chunk the text into smaller sections for easier understanding by the AI model.
-	•	Generate embeddings with HuggingFace embeddings and store them in Chroma vector database (in-memory).
-	•	Use Groq LLM to extract weather forecasts in structured JSON.
-	•	Show both the parsed JSON output and raw LLM output for debugging.
-	•	Configurable chunk size, overlap, and max chunks for fine-tuning.
-	•	In-memory storage by default; optionally, can be extended to persistent vector stores.
+## What this project does
 
-⸻
+This app turns messy HTML weather pages into tidy, machine-readable JSON forecasts. Given a URL, the pipeline:
 
-Forecast Schema
+1. Scrapes the page (via requests; optional Selenium fallback for JS-rendered pages).
+2. Cleans the HTML and removes irrelevant elements (scripts, ads, nav, etc.).
+3. Breaks the cleaned text into chunks for focused retrieval.
+4. Embeds the chunks (HuggingFace embeddings by default) and stores them in a Chroma vector store (in-memory or persisted to disk).
+5. Uses a Groq LLM via LangChain retrieval to extract and return a JSON list of forecast objects with fields:  
+   `day, max_temp, min_temp, condition, humidity, precipitation, wind_speed, wind_direction`
+6. Presents the parsed JSON and raw LLM output in the Streamlit UI for debugging.
 
-The extracted forecast JSON has the following structure (Pydantic schema):
+---
 
-[
-  {
-    "day": "Today",
-    "max_temp": "31°C",
-    "min_temp": "23°C",
-    "condition": "Sunny",
-    "humidity": "40%",
-    "precipitation": "4%",
-    "wind_speed": "NW 10 km/h",
-    "wind_direction": "NW"
-  }
-]
+## Features
 
+- Requests-first scraping with optional Selenium fallback
+- HTML cleaning and chunking (RecursiveCharacterTextSplitter)
+- In-memory or persistent Chroma vector store
+- RAG pipeline via LangChain + Groq LLM
+- Pydantic output parsing for strict JSON schema
+- Streamlit UI for inputs, settings, and results
+- Option for user to choose whether to persist vector data
 
-⸻
+---
 
-Installation
-	1.	Clone the repository
+## Folder Structure (suggested)
 
-git clone https://github.com/sancharika/Weather-Extractor.git
-cd Weather-Extractor
+```
+Weather-Extractor/
+├─ app.py
+├─ preprocess.py
+├─ scraper.py
+├─ rag.py
+├─ requirements.txt
+├─ .gitignore
+├─ README.md
+└─ (optional) weather_vectors/   # if persisting Chroma
+```
 
-	2.	Create a virtual environment
+---
 
-python -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
+## Requirements
 
-	3.	Install dependencies
+List all Python dependencies in `requirements.txt`. Example:
 
-pip install -r requirements.txt
+```
+streamlit
+bs4
+requests
+selenium
+selenium-stealth
+chromadb
+langchain
+langchain_groq
+pydantic
+huggingface-hub
+sentence-transformers
+```
 
-Dependencies included:
-	•	streamlit
-	•	requests
-	•	bs4 (BeautifulSoup)
-	•	selenium (optional)
-	•	selenium-stealth (optional)
-	•	chromadb
-	•	langchain
-	•	langchain_groq
-	•	pydantic
-	•	huggingface-hub
-	•	sentence-transformers
+If you are not using Selenium (recommended for Streamlit Community Cloud), you can remove `selenium` and `selenium-stealth`.
 
-⸻
+---
 
-Configuration
-	•	Groq API Key: Required to run the LLM.
-	•	Groq Model: Default: moonshotai/kimi-k2-instruct-0905.
-	•	Environment Variable Option (recommended for security):
+## Installation (local)
 
-export DEFAULT_GROQ_API_KEY="your_api_key_here"
+1. **Clone the repo:**
+   ```
+   git clone https://github.com/<your-username>/Weather-Extractor.git
+   cd Weather-Extractor
+   ```
+2. **Create & activate a virtualenv:**
+   ```
+   python -m venv venv
+   source venv/bin/activate   # macOS / Linux
+   # .\venv\Scripts\activate  # Windows PowerShell
+   ```
+3. **Install Python dependencies:**
+   ```
+   pip install -r requirements.txt
+   ```
+4. **(Optional)** If you plan to use Selenium locally, make sure Chrome and chromedriver are installed and chromedriver is in PATH.
 
-In Streamlit, you can set secrets under Settings → Secrets:
+---
 
-DEFAULT_GROQ_API_KEY="your_api_key_here"
+## Configuration & Secrets
 
+**Never commit secrets to the repository.**
 
-⸻
+Read the Groq API key from an environment variable or from Streamlit secrets.
 
-Usage
-	1.	Run the app locally:
+- **macOS / Linux:**
+  ```
+  export DEFAULT_GROQ_API_KEY="your_groq_api_key"
+  ```
+- **Windows PowerShell:**
+  ```
+  $env:DEFAULT_GROQ_API_KEY="your_groq_api_key"
+  ```
 
+In Streamlit Community Cloud, add the secret via the app dashboard:  
+Settings → Secrets
+
+In `app.py`, use:
+```python
+import os
+DEFAULT_GROQ_API_KEY = os.getenv("DEFAULT_GROQ_API_KEY")
+```
+
+---
+
+## How it works — step by step
+
+1. User inputs a URL and Groq API key (or the app reads it from environment).
+2. Scrape stage: `scrape_with_requests()` fetches the HTML. If that fails or if user opted in, `scrape_with_selenium()` loads the page with headless Chrome for JS-rendered content.
+3. Cleaning stage: `clean_html()` removes `<script>`, `<style>`, `<iframe>`, ads, nav, footer, and normalizes whitespace.
+4. Chunking stage: `RecursiveCharacterTextSplitter` splits the text into chunks (size and overlap configurable).
+5. Embedding and vector store: Each chunk is embedded using a HuggingFace model. Chroma stores these vectors — either in-memory (default) or persisted to a directory.
+6. Retrieval & generation: A LangChain RetrievalQA chain fetches the top-k chunks and the Groq LLM (via `langchain_groq.ChatGroq`) is prompted to produce strict JSON conforming to the ForecastItem pydantic schema.
+7. Output: The app tries to `json.loads()` the model response; if that fails, it searches for a JSON substring; otherwise, the raw output is shown for debugging.
+
+---
+
+## Usage (Streamlit UI)
+
+Open the app in browser (local):
+
+```
 streamlit run app.py
+```
 
-	2.	Input the following in the UI:
+UI elements:
 
-	•	Weather URL: The page to scrape (e.g., TimeAndDate extended forecast).
-	•	Groq API Key: Your API key (or leave blank if using environment variable).
-	•	Groq Model: Model name for Groq.
-	•	Use Selenium: Optional checkbox if the website needs JavaScript rendering.
-	•	Chunk size, overlap, max chunks: Optional advanced settings to fine-tune text splitting.
+- Enter weather URL
+- Use Selenium if requests fails (toggle)
+- Groq API Key (or set as environment variable)
+- Groq Model (default: moonshotai/kimi-k2-instruct-0905)
+- Chunk size / overlap
+- Max chunks (cost-control)
+- Extract forecast (RAG): Runs the pipeline and displays results
 
-	3.	Click “Extract forecast (RAG)”.
+---
 
-	•	Parsed JSON forecast will appear.
-	•	Raw LLM output is shown for debugging.
+## Persistence & Viewing Vector DB
 
-⸻
+- The vector store is in-memory by default (Chroma with no `persist_directory`).
+- To persist vectors to disk, enable the “Store vector data locally” option (or set `persist_directory` when creating Chroma).
+- Persisted data will appear in a folder like `./weather_vectors/` containing `chroma.sqlite3` and index files.
+- To inspect stored chunks programmatically:
+  ```python
+  docs = vectordb.get()
+  # or with LangChain API
+  retriever = vectordb.as_retriever()
+  ```
+- For Streamlit UI, you can add a viewer for stored chunk texts and metadata (display only with user consent).
 
-How it Works
-	1.	Scraping:
-	•	Tries to fetch HTML via requests.
-	•	Falls back to Selenium if enabled.
-	2.	Cleaning HTML:
-	•	Removes scripts, styles, nav, footer, ads, banners.
-	3.	Chunking text:
-	•	Breaks cleaned text into smaller pieces for embeddings.
-	4.	Embeddings & VectorStore:
-	•	Converts chunks into embeddings using HuggingFace.
-	•	Stores embeddings in Chroma (in-memory).
-	5.	RAG with Groq LLM:
-	•	Retrieves relevant chunks from vector store.
-	•	Sends them to Groq LLM with instructions to output strict JSON.
-	6.	Display:
-	•	Shows structured JSON forecast.
-	•	Optionally shows raw LLM output for debugging.
+---
 
-⸻
+## Deployment to Streamlit Community Cloud
 
-Notes
-	•	Selenium requires chromedriver installed in PATH.
-	•	The pipeline is in-memory by default; you can extend it to persistent storage.
-	•	Works best for pages with text-based weather data. Pages that load content via heavy JavaScript may require Selenium.
-	•	Groq API usage is rate-limited; make sure your key is valid.
+1. Push code to GitHub. Make sure `requirements.txt` is present and no secrets are committed.
+2. If secrets were ever committed, purge them from Git history (BFG or git filter-repo) and force-push a cleaned history.
+3. On Streamlit Cloud: New app → connect your GitHub repo → select branch + `app.py`.
+4. Add secrets in the app dashboard (Settings → Secrets), e.g.:
+   ```
+   DEFAULT_GROQ_API_KEY="your_groq_api_key"
+   ```
+5. Deploy. Streamlit Cloud will run `pip install -r requirements.txt` automatically.
 
-⸻
+**Note:** Streamlit Community Cloud does not provide Chrome/Chromedriver by default — avoid Selenium or use a remote scraping solution for production.
 
-Example
+---
 
-Input URL:
-https://www.timeanddate.com/weather/india/delhi/ext
+## Notes on Selenium & Headless Scraping
 
-Output JSON:
+- Selenium requires a system Chrome binary + matching chromedriver binary. On local machines you can install both.
+- Streamlit Community Cloud typically does not include Chrome/chromedriver — Selenium may fail there. Prefer requests + BeautifulSoup for deployment to Streamlit Cloud.
+- Alternative options for JS-heavy pages:
+  - Use a hosted headless browser service (e.g., Browserless, Playwright Cloud, ScraperAPI).
+  - Use the site’s API if available (many weather sites provide an API or JSON endpoint).
 
-[
-  {
-    "day": "Today",
-    "max_temp": "31°C",
-    "min_temp": "23°C",
-    "condition": "Sunny",
-    "humidity": "40%",
-    "precipitation": "4%",
-    "wind_speed": "NW 10 km/h",
-    "wind_direction": "NW"
-  },
-  {
-    "day": "Tomorrow",
-    "max_temp": "32°C",
-    "min_temp": "24°C",
-    "condition": "Partly cloudy",
-    "humidity": "42%",
-    "precipitation": "5%",
-    "wind_speed": "NW 12 km/h",
-    "wind_direction": "NW"
-  }
-]
+---
 
+## Troubleshooting
 
-⸻
+- **ModuleNotFoundError:**  
+  Ensure `requirements.txt` contains the missing package. Run `pip freeze > requirements.txt` locally to capture all installed packages.
+
+- **Push blocked by GitHub secret scanning:**  
+  If your commit history contains secrets, GitHub will block pushes. Use BFG or git filter-repo to purge secrets from history and force-push the cleaned branch.
+
+- **Selenium errors on Streamlit Cloud:**  
+  Remove Selenium usage or move scraping to a background worker / external service.
+
+- **LLM returns non-JSON:**  
+  Increase `max_chunks`, refine the prompt, or add stricter output parsing (Pydantic + format instructions). Display raw LLM output for debugging.
+
+---
