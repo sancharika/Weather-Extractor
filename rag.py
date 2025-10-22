@@ -91,7 +91,7 @@ def run_rag_extraction(
     llm = build_groq_llm(api_key=groq_api_key, model_name=groq_model)
     retriever = vectordb.as_retriever(search_kwargs={"k": 4})
 
-    qa_chain = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
+    # qa_chain = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
 
     # 5) Compose system prompt to instruct LLM to output strict JSON list
     format_instructions = parser.get_format_instructions()
