@@ -2,7 +2,7 @@
 import streamlit as st
 
 # LangChain + Groq + Vector DB imports
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # RAG imports
 from rag import run_rag_extraction
