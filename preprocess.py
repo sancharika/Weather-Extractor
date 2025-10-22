@@ -3,7 +3,7 @@
 # -----------------------
 
 from bs4 import BeautifulSoup
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import re
 from typing import List
 from bs4 import BeautifulSoup
