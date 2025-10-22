@@ -11,7 +11,9 @@ from scraper import scrape_with_requests, scrape_with_selenium
 from preprocess import clean_html, chunk_text
 
 # LangChain + Groq + Vector DB imports
-from langchain.chains import RetrievalQA
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain
+from langchain.prompts import ChatPromptTemplate
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.output_parsers import PydanticOutputParser
@@ -104,7 +106,18 @@ Use concise values, e.g., '31°C', '4%', 'NW 10 km/h'.
 """
 
     # Run the RAG chain
-    result = qa_chain.run(user_prompt)
+    prompt = ChatPromptTemplate.from_template(user_prompt)
+
+    # Combine docs chain (stuff chain)
+    combine_docs_chain = create_stuff_documents_chain(llm, prompt)
+
+    # Retrieval chain
+    retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
+
+    # 6) Run retrieval-based extraction
+    result = retrieval_chain.invoke({"input": "Extract forecast details."})
+    text_output = result["answer"] if "answer" in result else str(result)
+
     # Attempt to parse as JSON array — sometimes the LLM may return one object per line
     try:
         parsed = json.loads(result)
