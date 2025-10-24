@@ -1,19 +1,19 @@
 # app.py
 import streamlit as st
+import os
 
 # LangChain + Groq + Vector DB imports
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # RAG imports
-from rag import run_rag_extraction
+from rag import run_rag_extraction, delete_vector_db
 
 # -----------------------
 #  Config / Keys
 # -----------------------
-# Provide in UI or environment
-import os
-DEFAULT_GROQ_API_KEY = os.getenv("DEFAULT_GROQ_API_KEY")
+DEFAULT_GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 DEFAULT_GROQ_MODEL = "moonshotai/kimi-k2-instruct-0905"
+PERSIST_DIR = "./chroma_store"  # optional if you ever persist
 
 # -----------------------
 #  Streamlit UI
@@ -21,7 +21,7 @@ DEFAULT_GROQ_MODEL = "moonshotai/kimi-k2-instruct-0905"
 st.set_page_config(page_title="RAG Weather Extractor", layout="wide")
 st.title("🌦️ RAG Weather Extractor — Scrape, Clean, Embed, Retrieve, Parse")
 
-col1, col2 = st.columns([2,1])
+col1, col2 = st.columns([2, 1])
 
 with col1:
     url = st.text_input("Enter weather URL", "https://www.timeanddate.com/weather/india/delhi/ext")
@@ -31,15 +31,21 @@ with col1:
     chunk_size = st.number_input("Chunk size (characters)", value=1000, step=100)
     chunk_overlap = st.number_input("Chunk overlap", value=200, step=50)
     max_chunks = st.number_input("Max chunks to embed", value=8, min_value=1, max_value=32, step=1)
+    # Buttons side by side
+    btn_col1, btn_col2 = st.columns([1, 1])
 
-    if st.button("Extract forecast (RAG)"):
+    with btn_col1:
+        extract_btn = st.button("Extract forecast (RAG)", use_container_width=True)
+    with btn_col2:
+        delete_db_btn = st.button("🗑️ Delete Vector DB", use_container_width=True)
+
+    if extract_btn:
         if not groq_api_key:
             st.error("Groq API key required — enter it above.")
         else:
             with st.spinner("Scraping → cleaning → embedding → retrieving..."):
                 try:
-                    # update text splitter behavior with UI inputs
-                    # re-create chunk_text with new chunk settings by monkeypatching function closure:
+                    # Update text splitter dynamically
                     def chunk_text_local(text: str):
                         splitter = RecursiveCharacterTextSplitter(
                             chunk_size=int(chunk_size),
@@ -47,7 +53,7 @@ with col1:
                             separators=["\n\n", "\n", " ", ""]
                         )
                         return splitter.split_text(text)
-                    # inject local chunker
+
                     globals()["chunk_text"] = chunk_text_local
 
                     parsed, raw_output = run_rag_extraction(
@@ -70,6 +76,15 @@ with col1:
                 except Exception as e:
                     st.error(f"Extraction failed: {e}")
 
+    elif delete_db_btn:
+        # If you persist vectors, clean that directory; otherwise, clear memory
+        with st.spinner("Deleting vector database..."):
+            try:
+                delete_vector_db(persist_directory=PERSIST_DIR)
+                st.success("🧹 Vector database deleted successfully.")
+            except Exception as e:
+                st.error(f"Failed to delete vector DB: {e}")
+
 with col2:
     st.markdown("### Quick tips")
     st.markdown("""
@@ -78,13 +93,9 @@ with col2:
 - You can swap HuggingFace embedding to a cloud embedding provider if you prefer.
 - The pipeline stores vectors in-memory (Chroma) and DOES NOT persist to disk by default.
 """)
+    st.markdown("### Maintenance")
+    st.info("Use the **🗑️ Delete Vector DB** button if you want to reset the embeddings cache.")
     st.markdown("### Dependencies (pip)")
     st.code("""
 pip install streamlit bs4 requests selenium selenium-stealth chromadb langchain langchain_groq pydantic huggingface-hub sentence-transformers
     """)
-    st.markdown("### Notes")
-    st.markdown("""
-- You must provide a working Groq API key.
-- Embeddings use a HuggingFace model (internet required). If you prefer a cloud embedding API, replace `HuggingFaceEmbeddings`.
-- Chromadb in-memory is fine for single-run extraction. For production, use a persistent vector DB like Pinecone or a persisted chroma directory.
-""")
