@@ -2,14 +2,14 @@ streamlit
 bs4
 requests
 selenium
-selenium - stealth
+selenium-stealth
 chromadb
 langchain
-langchain - core
-langchain - community
+langchain-core
+langchain-community
 langchain_groq
-langchain - text - splitters
+langchain-text-splitters
 langchain_huggingface
 pydantic
-huggingface - hub
-sentence - transformers
+huggingface-hub
+sentence-transformers
